@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Centre Popeye — Gestion complète + Filtres avancés</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+  /* ========== STYLES (identiques à la version précédente) ========== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg-deep: #0a0c15;
+    --bg-surface: #11141f;
+    --bg-elevated: #1a1e2c;
+    --accent-primary: #38bdf8;
+    --accent-secondary: #7dd3fc;
+    --accent-gold: #facc15;
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --border-subtle: rgba(255,255,255,0.08);
+    --border-medium: rgba(255,255,255,0.12);
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.3);
+    --shadow-glow: 0 0 20px rgba(56,189,248,0.3);
+  }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 20% 30%, rgba(56,189,248,0.08) 0%, transparent 60%),
+                radial-gradient(circle at 80% 70%, rgba(125,211,252,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+  }
+  .loader-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-deep);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    transition: opacity 0.5s;
+  }
+  .loader-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--border-medium);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,12,21,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0.75rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .nav-links {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
+  .nav-btn.active {
+    background: var(--accent-primary);
+    color: var(--bg-deep);
+    box-shadow: var(--shadow-glow);
+  }
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    background: var(--bg-elevated);
+    padding: 0.35rem 0.9rem;
+    border-radius: 20px;
+    color: var(--text-secondary);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+  }
+  .page { display: none; animation: fadeIn 0.4s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .hero {
+    min-height: calc(100vh - 70px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+  .hero-badge {
+    background: var(--bg-elevated);
+    padding: 0.4rem 1rem;
+    border-radius: 40px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-subtle);
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.5rem,7vw,4.5rem);
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #fff, var(--accent-primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero p {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 550px;
+    margin-bottom: 2rem;
+  }
+  .btn-group { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border: none;
+    color: var(--bg-deep);
+    font-weight: 600;
+    padding: 0.8rem 2rem;
+    border-radius: 40px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .btn-secondary {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-medium);
+    color: var(--text-primary);
+    padding: 0.8rem 2rem;
+    border-radius: 40px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.05); border-color: var(--accent-primary); }
+  .contact-info { margin-top: 3rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+  .contact-links { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+  .contact-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .contact-links a:hover { color: var(--accent-primary); }
+  .section { max-width: 1300px; margin: 0 auto; padding: 3rem 2rem; }
+  .section-header { margin-bottom: 2rem; }
+  .section-header h2 { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .section-header p { color: var(--text-secondary); }
+  .form-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 24px;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+  .form-group.full-width { grid-column: 1 / -1; }
+  label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  input, select, textarea {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.2);
+  }
+  .planning-wrapper {
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+  }
+  .planning-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    min-width: 900px;
+  }
+  .planning-table th {
+    background: var(--bg-elevated);
+    color: var(--accent-primary);
+    font-weight: 600;
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+    border-bottom: 2px solid var(--border-subtle);
+  }
+  .planning-table td {
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0;
+    height: 48px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  .time-cell {
+    background: var(--bg-elevated);
+    font-weight: 500;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    width: 65px;
+  }
+  .time-cell.highlight { color: var(--accent-gold); font-weight: 600; }
+  .free-cell { background: rgba(255,255,255,0.02); cursor: pointer; transition: background 0.15s; }
+  .free-cell:hover { background: rgba(56,189,248,0.1); }
+  .booked-cell {
+    background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(125,211,252,0.1));
+    border-left: 3px solid var(--accent-primary);
+    cursor: pointer;
+  }
+  .booked-content { padding: 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .booked-time { font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); }
+  .booked-name { font-size: 0.65rem; color: var(--text-secondary); }
+  .booked-subject { font-size: 0.6rem; color: var(--text-muted); }
+  .reservations-list { display: flex; flex-direction: column; gap: 1rem; }
+  .res-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 1.2rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    transition: all 0.2s;
+  }
+  .res-card:hover { border-color: var(--accent-primary); transform: translateX(4px); }
+  .res-info { flex: 1; }
+  .res-title { font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem; }
+  .res-meta { font-size: 0.8rem; color: var(--text-muted); }
+  .res-badges { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+  .badge-room { background: rgba(56,189,248,0.15); color: var(--accent-primary); }
+  .badge-status { background: rgba(16,185,129,0.15); color: var(--success); }
+  .delete-btn {
+    background: none;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .delete-btn:hover { border-color: var(--danger); color: var(--danger); }
+  .filter-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem; background: var(--bg-surface); padding: 1rem; border-radius: 20px; border: 1px solid var(--border-subtle); }
+  .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+  .filter-chip {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    padding: 0.4rem 1rem;
+    border-radius: 40px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-chip:hover, .filter-chip.active {
+    background: var(--accent-primary);
+    color: var(--bg-deep);
+    border-color: var(--accent-primary);
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s;
+  }
+  .modal-overlay.active { opacity: 1; visibility: visible; }
+  .modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 24px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 100%;
+    transform: scale(0.95);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.active .modal { transform: scale(1); }
+  .modal h3 { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 1rem; }
+  .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--bg-elevated);
+    border-left: 4px solid var(--accent-primary);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    z-index: 300;
+    transform: translateX(120%);
+    transition: transform 0.3s;
+    box-shadow: var(--shadow-md);
+  }
+  .toast.show { transform: translateX(0); }
+  .toast.success { border-left-color: var(--success); }
+  .toast.error { border-left-color: var(--danger); }
+  .legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; font-size: 0.75rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+  .legend-color { width: 16px; height: 16px; border-radius: 4px; }
+  .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); }
+  .cash-summary { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 2rem; }
+  .summary-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 1rem 1.5rem;
+    flex: 1;
+    min-width: 150px;
+    text-align: center;
+  }
+  .summary-card h3 {
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+  .summary-card .amount { font-size: 1.8rem; font-weight: 700; font-family: monospace; }
+  .initial-balance-input { display: flex; gap: 0.5rem; align-items: center; justify-content: center; margin-top: 0.5rem; }
+  .initial-balance-input input { width: 120px; text-align: center; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 0.4rem; color: var(--text-primary); }
+  .transactions-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .transactions-table th, .transactions-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+  .transactions-table th { color: var(--accent-primary); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+  .income { color: var(--success); }
+  .expense { color: var(--danger); }
+  .delete-transaction { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; transition: color 0.2s; }
+  .delete-transaction:hover { color: var(--danger); }
+  .month-selector { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .daily-history-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .daily-history-table th, .daily-history-table td { padding: 0.75rem; text-align: right; border-bottom: 1px solid var(--border-subtle); }
+  .daily-history-table th:first-child, .daily-history-table td:first-child { text-align: left; }
+  .teachers-list { margin-top: 1rem; }
+  .teacher-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .teacher-info { flex: 1; }
+  .teacher-name { font-weight: 600; margin-bottom: 0.25rem; }
+  .teacher-phone { font-size: 0.8rem; color: var(--text-muted); }
+  .teacher-actions { display: flex; gap: 0.5rem; }
+  .edit-btn, .delete-teacher-btn { background: none; border: 1px solid var(--border-subtle); color: var(--text-secondary); padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .edit-btn:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
+  .delete-teacher-btn:hover { border-color: var(--danger); color: var(--danger); }
+  .library-tabs { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-subtle); }
+  .tab-btn { background: none; border: none; color: var(--text-secondary); padding: 0.75rem 1.5rem; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+  .tab-btn.active { color: var(--accent-primary); border-bottom: 2px solid var(--accent-primary); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+  .library-item {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  @media (max-width: 768px) {
+    .navbar { padding: 0.75rem 1rem; }
+    .section { padding: 2rem 1rem; }
+    .form-card { padding: 1.5rem; }
+    .res-card { flex-direction: column; align-items: flex-start; }
+    .cash-summary { flex-direction: column; }
+    .filter-bar { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loader-overlay" id="loader">
+  <div class="loader-spinner"></div>
+  <p style="color: var(--text-muted);">Connexion à la base de données...</p>
+</div>
+
+<div id="app" style="display: none;">
+  <nav class="navbar">
+    <div class="logo">✦ Centre Popeye</div>
+    <div class="nav-links">
+      <button class="nav-btn active" onclick="navigateTo('home')">Accueil</button>
+      <button class="nav-btn" onclick="navigateTo('reserve')">Réserver</button>
+      <button class="nav-btn" onclick="navigateTo('planning')">Planning</button>
+      <button class="nav-btn" onclick="navigateTo('reservations')">Réservations</button>
+      <button class="nav-btn" onclick="navigateTo('cash')">💰 Caisse</button>
+      <button class="nav-btn" onclick="navigateTo('cashHistory')">📅 Historique</button>
+      <button class="nav-btn" onclick="navigateTo('teachers')">👨‍🏫 Profs</button>
+      <button class="nav-btn" onclick="navigateTo('library')">📚 Bibliothèque</button>
+    </div>
+    <div class="status-badge"><div class="status-dot"></div><span>Connecté</span></div>
+  </nav>
+
+  <!-- Page Accueil -->
+  <div class="page active" id="page-home">
+    <div class="hero">
+      <div class="hero-badge">✦ Gestion Intelligente des Salles</div>
+      <h1>Centre d'Étude<br>Popeye</h1>
+      <p>Réservez une salle, suivez la caisse et gérez la bibliothèque.</p>
+      <div class="btn-group">
+        <button class="btn-primary" onclick="navigateTo('reserve')">📅 Réserver une salle</button>
+        <button class="btn-secondary" onclick="navigateTo('planning')">📊 Voir le planning</button>
+      </div>
+      <div class="contact-info">
+        <div class="contact-links">
+          <a href="tel:95688334">📞 95 688 334</a>
+          <a href="tel:97057304">📞 97 057 304</a>
+          <a href="tel:58652149">📞 58 652 149</a>
+        </div>
+        <a href="https://www.instagram.com/centre_de_popeye/" target="_blank" class="contact-links" style="text-decoration: none;">📷 @centre_de_popeye</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page Réservation (identique) -->
+  <div class="page" id="page-reserve">
+    <div class="section">
+      <div class="section-header">
+        <h2>Nouvelle réservation</h2>
+        <p>Durée fixe : 2 heures · Créneaux toutes les 30 minutes · Cours facultatif</p>
+      </div>
+      <div class="form-card">
+        <div class="form-grid">
+          <div class="form-group"><label>👨‍🏫 Enseignant</label><select id="teacherSelect"><option value="">Chargement...</option></select></div>
+          <div class="form-group"><label>🏢 Salle</label><select id="roomSelect"><option value="">Choisir une salle</option><option>S1</option><option>S2</option><option>S3</option><option>S4</option><option>S5</option><option>Bureau</option><option>R1</option><option>R2</option><option>R3</option></select></div>
+          <div class="form-group"><label>📅 Date</label><input type="date" id="reservationDate"></div>
+          <div class="form-group"><label>⏰ Heure de début</label><select id="startTimeSelect"><option value="">Sélectionner</option></select></div>
+          <div class="form-group"><label>⏰ Heure de fin (auto +2h)</label><input type="text" id="endTimeInput" readonly></div>
+          <div class="form-group"><label>📚 Cours / Objet (facultatif)</label><input type="text" id="courseSubject" placeholder="Ex: Mathématiques, Physique..."></div>
+          <div class="form-group full-width"><label>📝 Remarques</label><textarea id="remarks" rows="3"></textarea></div>
+        </div>
+        <div class="btn-group" style="margin-top: 1.5rem;"><button class="btn-primary" onclick="submitReservation()">✓ Confirmer</button><button class="btn-secondary" onclick="resetReservationForm()">Effacer</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page Planning (identique) -->
+  <div class="page" id="page-planning">
+    <div class="section">
+      <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div><h2>Planning des salles</h2><p>8h00 → 22h00 · Créneaux 30 min</p></div>
+        <div style="display: flex; gap: 0.5rem;"><input type="date" id="planningDatePicker"><button class="btn-secondary" onclick="loadPlanning()">⟳ Actualiser</button></div>
+      </div>
+      <div class="legend"><div class="legend-item"><div class="legend-color" style="background: rgba(255,255,255,0.05); border:1px solid var(--border-subtle);"></div> Libre</div><div class="legend-item"><div class="legend-color" style="background: rgba(56,189,248,0.2); border-left:3px solid var(--accent-primary);"></div> Réservé</div></div>
+      <div id="planningLoader" style="text-align:center; padding:2rem; display:none;"><div class="loader-spinner" style="margin:0 auto;"></div></div>
+      <div class="planning-wrapper" id="planningContainer"><table class="planning-table" id="planningTable"></table></div>
+    </div>
+  </div>
+
+  <!-- Page Réservations (identique) -->
+  <div class="page" id="page-reservations">
+    <div class="section">
+      <div class="section-header"><h2>Toutes les réservations</h2><p>Liste complète</p></div>
+      <div class="filter-bar" id="filterBar"></div>
+      <div id="reservationsLoader" style="text-align:center; padding:2rem; display:none;"><div class="loader-spinner"></div></div>
+      <div class="reservations-list" id="reservationsList"></div>
+    </div>
+  </div>
+
+  <!-- Page Caisse AVEC FILTRES DATE -->
+  <div class="page" id="page-cash">
+    <div class="section">
+      <div class="section-header"><h2>💰 Caisse du centre</h2><p>Suivi des revenus et dépenses</p></div>
+      <div class="form-card" style="margin-bottom:2rem;"><h3>État initial</h3><div class="initial-balance-input"><input type="number" id="initialBalanceInput" step="0.01"><button class="btn-secondary" onclick="updateInitialBalance()">Enregistrer</button></div></div>
+      <div class="cash-summary" id="cashSummary"></div>
+      <div class="form-card" style="margin-bottom:2rem;">
+        <h3>Ajouter un mouvement</h3>
+        <div class="form-grid">
+          <div class="form-group"><label>Type</label><select id="transactionType"><option value="income">💰 Revenu</option><option value="expense">💸 Dépense</option></select></div>
+          <div class="form-group"><label>Montant (TND)</label><input type="number" id="transactionAmount" step="0.01"></div>
+          <div class="form-group"><label>Date</label><input type="date" id="transactionDate"></div>
+          <div class="form-group full-width"><label>Description</label><textarea id="transactionDescription" rows="2"></textarea></div>
+        </div>
+        <div class="btn-group"><button class="btn-primary" onclick="addManualTransaction()">➕ Ajouter</button><button class="btn-secondary" onclick="resetTransactionForm()">Effacer</button></div>
+      </div>
+      
+      <!-- FILTRES DATE POUR TRANSACTIONS -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+        <h3>Historique des transactions</h3>
+        <button class="btn-primary" onclick="exportAllTransactionsPDF()">📄 Exporter PDF</button>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group"><label>📅 Date début</label><input type="date" id="transactionFilterStart"></div>
+        <div class="form-group"><label>📅 Date fin</label><input type="date" id="transactionFilterEnd"></div>
+        <button class="btn-primary" onclick="applyTransactionFilter()">🔍 Filtrer</button>
+        <button class="btn-secondary" onclick="resetTransactionFilter()">♻️ Réinitialiser</button>
+      </div>
+      <div id="transactionsLoader" style="text-align:center; padding:2rem; display:none;"><div class="loader-spinner"></div></div>
+      <div class="planning-wrapper"><table class="transactions-table" id="transactionsTable"><thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Description</th><th style="width:50px;"></th></tr></thead><tbody id="transactionsList"><tr><td colspan="5" class="empty-state">Chargement...</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Page Historique Caisse -->
+  <div class="page" id="page-cashHistory">
+    <div class="section">
+      <div class="section-header"><h2>📅 Historique journalier</h2><p>État par jour pour le mois sélectionné</p></div>
+      <div class="month-selector"><input type="month" id="historyMonth"><button class="btn-secondary" onclick="loadDailyHistory()">Afficher</button><button class="btn-primary" onclick="exportMonthlyPDF()">📄 Exporter PDF du mois</button></div>
+      <div id="historyLoader" style="text-align:center; padding:2rem; display:none;"><div class="loader-spinner"></div></div>
+      <div class="planning-wrapper"><table class="daily-history-table" id="dailyHistoryTable"><thead><tr><th>Date</th><th>Solde initial</th><th>Entrées</th><th>Sorties</th><th>Solde final</th></tr></thead><tbody id="dailyHistoryBody"><tr><td colspan="5" class="empty-state">Sélectionnez un mois</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Page Professeurs -->
+  <div class="page" id="page-teachers">
+    <div class="section">
+      <div class="section-header"><h2>👨‍🏫 Gestion des professeurs</h2><p>Ajouter, modifier, supprimer</p></div>
+      <button class="btn-primary" onclick="openTeacherModal()" style="margin-bottom:1rem;">➕ Nouveau professeur</button>
+      <div id="teachersLoader" style="text-align:center; padding:2rem; display:none;"><div class="loader-spinner"></div></div>
+      <div class="teachers-list" id="teachersList"></div>
+    </div>
+  </div>
+
+  <!-- Page Bibliothèque AVEC FILTRES DATE -->
+  <div class="page" id="page-library">
+    <div class="section">
+      <div class="section-header"><h2>📚 Bibliothèque</h2><p>Gestion des abonnements et des passes journée</p></div>
+      <div class="library-tabs">
+        <button class="tab-btn active" onclick="switchLibraryTab('subscriptions')">📅 Abonnements</button>
+        <button class="tab-btn" onclick="switchLibraryTab('daily')">🎟️ Pass journée</button>
+      </div>
+      <!-- Abonnements avec filtre date -->
+      <div id="subscriptionsTab" class="tab-pane active">
+        <button class="btn-primary" onclick="openSubscriptionModal()" style="margin-bottom:1rem;">➕ Nouvel abonnement</button>
+        <div class="filter-bar">
+          <div class="form-group"><label>📅 Date début (start_date)</label><input type="date" id="subFilterStart"></div>
+          <div class="form-group"><label>📅 Date fin (start_date)</label><input type="date" id="subFilterEnd"></div>
+          <button class="btn-primary" onclick="applySubFilter()">🔍 Filtrer</button>
+          <button class="btn-secondary" onclick="resetSubFilter()">♻️ Réinitialiser</button>
+        </div>
+        <div id="subscriptionsLoader" style="text-align:center; padding:1rem; display:none;"><div class="loader-spinner"></div></div>
+        <div class="library-list" id="subscriptionsList"></div>
+      </div>
+      <!-- Pass journée avec filtre date -->
+      <div id="dailyTab" class="tab-pane">
+        <button class="btn-primary" onclick="openDailyPassModal()" style="margin-bottom:1rem;">➕ Nouveau pass journée</button>
+        <div class="filter-bar">
+          <div class="form-group"><label>📅 Date début</label><input type="date" id="dailyFilterStart"></div>
+          <div class="form-group"><label>📅 Date fin</label><input type="date" id="dailyFilterEnd"></div>
+          <button class="btn-primary" onclick="applyDailyFilter()">🔍 Filtrer</button>
+          <button class="btn-secondary" onclick="resetDailyFilter()">♻️ Réinitialiser</button>
+        </div>
+        <div id="dailyLoader" style="text-align:center; padding:1rem; display:none;"><div class="loader-spinner"></div></div>
+        <div class="library-list" id="dailyList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastMessage"></div>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal()">Annuler</button><button class="btn-primary" id="modalConfirmBtn">Confirmer</button></div>
+  </div>
+</div>
+
+<script>
+  // ==================== CONFIGURATION SUPABASE ====================
+  const SUPABASE_URL = 'https://jdiykgdueyennzttbzaq.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkaXlrZ2R1ZXllbm56dHRiemFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3ODU5MTcsImV4cCI6MjA5MDM2MTkxN30.sTk7ddjQiz_AhAMov7GgjU3t_2d8elOjG_qBMpakk4k';
+  const HEADERS = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`
+  };
+  const API_RESERVATIONS = `${SUPABASE_URL}/rest/v1/reservations`;
+  const API_CASH_SETTINGS = `${SUPABASE_URL}/rest/v1/cash_settings`;
+  const API_CASH_TRANSACTIONS = `${SUPABASE_URL}/rest/v1/cash_transactions`;
+  const API_TEACHERS = `${SUPABASE_URL}/rest/v1/teachers`;
+  const API_SUBSCRIPTIONS = `${SUPABASE_URL}/rest/v1/subscriptions`;
+  const API_DAILY_PASSES = `${SUPABASE_URL}/rest/v1/daily_passes`;
+
+  const ROOMS = ['S1', 'S2', 'S3', 'S4', 'S5', 'Bureau', 'R1', 'R2', 'R3'];
+  let currentFilter = 'all';
+  let modalCallback = null;
+  let currentTeacherId = null;
+
+  // Helper fonctions (showToast, openModal, closeModal, navigateTo, escapeHtml, etc.)
+  function showToast(message, type = '') { const toast = document.getElementById('toastMessage'); toast.textContent = message; toast.className = 'toast show'; if (type) toast.classList.add(type); setTimeout(() => toast.classList.remove('show'), 3000); }
+  function openModal(title, body, callback) { document.getElementById('modalTitle').textContent = title; document.getElementById('modalBody').innerHTML = body; modalCallback = callback; document.getElementById('modalOverlay').classList.add('active'); }
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); modalCallback = null; }
+  document.getElementById('modalConfirmBtn').onclick = () => { if (modalCallback) modalCallback(); closeModal(); };
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target === document.getElementById('modalOverlay')) closeModal(); };
+  function navigateTo(page) { /* ... identique ... */ document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active')); document.getElementById(`page-${page}`).classList.add('active'); const navMap = { home: 'Accueil', reserve: 'Réserver', planning: 'Planning', reservations: 'Réservations', cash: '💰 Caisse', cashHistory: '📅 Historique', teachers: '👨‍🏫 Profs', library: '📚 Bibliothèque' }; document.querySelectorAll('.nav-btn').forEach(btn => { if (btn.textContent.trim() === navMap[page]) btn.classList.add('active'); }); if (page === 'planning') loadPlanning(); if (page === 'reservations') loadReservations(); if (page === 'cash') { loadCashSummaryOnly(); loadFilteredTransactions(null,null); } if (page === 'cashHistory') loadDailyHistory(); if (page === 'teachers') loadTeachers(); if (page === 'library') { resetSubFilter(); resetDailyFilter(); } window.scrollTo(0,0); }
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+
+  // ==================== PROFESSEURS (inchangé) ====================
+  async function fetchTeachers() { const res = await fetch(API_TEACHERS + '?order=nom.asc', { headers: HEADERS }); if (!res.ok) throw new Error(); return await res.json(); }
+  async function loadTeachers() { /* ... identique ... */ const loader = document.getElementById('teachersLoader'); const container = document.getElementById('teachersList'); loader.style.display = 'block'; container.innerHTML = ''; const teachers = await fetchTeachers(); loader.style.display = 'none'; if (teachers.length === 0) { container.innerHTML = '<div class="empty-state">Aucun professeur</div>'; return; } teachers.forEach(t => { const card = document.createElement('div'); card.className = 'teacher-card'; card.innerHTML = `<div class="teacher-info"><div class="teacher-name">${escapeHtml(t.prenom)} ${escapeHtml(t.nom)}</div><div class="teacher-phone">📞 ${escapeHtml(t.telephone || 'Non renseigné')}</div></div><div class="teacher-actions"><button class="edit-btn" onclick="openTeacherModal(${t.id}, '${escapeHtml(t.nom)}', '${escapeHtml(t.prenom)}', '${escapeHtml(t.telephone || '')}')">✏️ Modifier</button><button class="delete-teacher-btn" onclick="deleteTeacher(${t.id})">🗑️ Supprimer</button></div>`; container.appendChild(card); }); }
+  function openTeacherModal(id=null, nom='', prenom='', telephone='') { /* ... */ currentTeacherId = id; const body = `<div class="form-group"><label>Nom</label><input type="text" id="teacherNom" value="${nom.replace(/"/g, '&quot;')}" required></div><div class="form-group"><label>Prénom</label><input type="text" id="teacherPrenom" value="${prenom.replace(/"/g, '&quot;')}" required></div><div class="form-group"><label>Téléphone</label><input type="tel" id="teacherPhone" value="${telephone.replace(/"/g, '&quot;')}"></div>`; openModal(id ? 'Modifier' : 'Ajouter', body, async () => { const nomVal = document.getElementById('teacherNom').value.trim(); const prenomVal = document.getElementById('teacherPrenom').value.trim(); const phoneVal = document.getElementById('teacherPhone').value.trim(); if (!nomVal || !prenomVal) { showToast('Nom et prénom requis', 'error'); return; } const data = { nom: nomVal, prenom: prenomVal, telephone: phoneVal || null }; if (currentTeacherId) { await fetch(`${API_TEACHERS}?id=eq.${currentTeacherId}`, { method: 'PATCH', headers: HEADERS, body: JSON.stringify(data) }); showToast('Professeur modifié', 'success'); } else { await fetch(API_TEACHERS, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify(data) }); showToast('Professeur ajouté', 'success'); } loadTeachers(); loadTeacherSelect(); }); }
+  async function deleteTeacher(id) { openModal('Supprimer', '<p>Supprimer ce professeur ?</p>', async () => { await fetch(`${API_TEACHERS}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS }); showToast('Professeur supprimé', 'success'); loadTeachers(); loadTeacherSelect(); }); }
+  async function loadTeacherSelect() { const select = document.getElementById('teacherSelect'); if (!select) return; select.innerHTML = '<option value="">Chargement...</option>'; const teachers = await fetchTeachers(); if (teachers.length === 0) { select.innerHTML = '<option value="">Aucun professeur</option>'; return; } select.innerHTML = '<option value="">Choisir un professeur</option>'; teachers.forEach(t => { const opt = document.createElement('option'); opt.value = `${t.prenom} ${t.nom}`; opt.textContent = `${t.prenom} ${t.nom}${t.telephone ? ` - ${t.telephone}` : ''}`; select.appendChild(opt); }); }
+
+  // ==================== RÉSERVATIONS (inchangé) ====================
+  function generateTimeSlots() { const slots = []; for (let h=8; h<=21; h++) { for (let m=0; m<60; m+=30) slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`); } slots.push('22:00'); return slots; }
+  const TIME_SLOTS = generateTimeSlots();
+  function timeToMinutes(t) { let [h,m]=t.split(':').map(Number); return h*60+m; }
+  function minutesToTime(min) { return `${String(Math.floor(min/60)).padStart(2,'0')}:${String(min%60).padStart(2,'0')}`; }
+  async function fetchReservations() { const res = await fetch(API_RESERVATIONS + '?order=date.asc,debut.asc', { headers: HEADERS }); if (!res.ok) throw new Error(); return await res.json(); }
+  async function addReservation(data) { await fetch(API_RESERVATIONS, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify(data) }); }
+  async function removeReservation(id) { await fetch(`${API_RESERVATIONS}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS }); }
+  function checkConflict(reservations, newRes) { return reservations.some(r => r.salle === newRes.salle && r.date === newRes.date && !(timeToMinutes(newRes.fin) <= timeToMinutes(r.debut) || timeToMinutes(newRes.debut) >= timeToMinutes(r.fin))); }
+  function initForm() { const startSelect = document.getElementById('startTimeSelect'); TIME_SLOTS.forEach(slot => { if (timeToMinutes(slot) <= timeToMinutes('20:00')) { const opt = document.createElement('option'); opt.value = slot; opt.textContent = slot; startSelect.appendChild(opt); } }); startSelect.addEventListener('change', () => { const start = startSelect.value; if (start) document.getElementById('endTimeInput').value = minutesToTime(timeToMinutes(start)+120); else document.getElementById('endTimeInput').value = ''; }); const today = new Date().toISOString().split('T')[0]; document.getElementById('reservationDate').value = today; document.getElementById('planningDatePicker').value = today; loadTeacherSelect(); }
+  function resetReservationForm() { document.getElementById('teacherSelect').value = ''; document.getElementById('roomSelect').value = ''; document.getElementById('startTimeSelect').value = ''; document.getElementById('endTimeInput').value = ''; document.getElementById('courseSubject').value = ''; document.getElementById('remarks').value = ''; }
+  async function submitReservation() { const teacher = document.getElementById('teacherSelect').value; const room = document.getElementById('roomSelect').value; const date = document.getElementById('reservationDate').value; const start = document.getElementById('startTimeSelect').value; const end = document.getElementById('endTimeInput').value; const subject = document.getElementById('courseSubject').value.trim(); const remarks = document.getElementById('remarks').value; if (!teacher || !room || !date || !start) { showToast('⚠️ Veuillez remplir tous les champs obligatoires', 'error'); return; } const reservations = await fetchReservations(); if (checkConflict(reservations, { salle: room, date, debut: start, fin: end })) { showToast('⚠️ Conflit', 'error'); return; } openModal('Confirmer', `<div><strong>Salle :</strong> ${room}</div><div><strong>Date :</strong> ${date}</div><div><strong>Créneau :</strong> ${start} → ${end}</div><div><strong>Enseignant :</strong> ${teacher}</div>`, async () => { await addReservation({ ens: teacher, salle: room, date, debut: start, fin: end, objet: subject || null, remarque: remarks, status: 'confirmé' }); showToast('✓ Réservation confirmée', 'success'); resetReservationForm(); if (document.getElementById('page-planning').classList.contains('active')) loadPlanning(); if (document.getElementById('page-reservations').classList.contains('active')) loadReservations(); }); }
+  async function loadPlanning() { /* identique */ const date = document.getElementById('planningDatePicker').value; const loader = document.getElementById('planningLoader'); const container = document.getElementById('planningContainer'); loader.style.display = 'block'; container.style.display = 'none'; const reservations = await fetchReservations(); const dayReservations = reservations.filter(r => r.date === date); const table = document.getElementById('planningTable'); table.innerHTML = ''; const thead = document.createElement('thead'); const headerRow = document.createElement('tr'); headerRow.appendChild(document.createElement('th')).textContent = 'Horaire'; ROOMS.forEach(r => { headerRow.appendChild(document.createElement('th')).textContent = r; }); thead.appendChild(headerRow); table.appendChild(thead); const tbody = document.createElement('tbody'); const skipRow = new Array(ROOMS.length).fill(0); for (const slot of TIME_SLOTS) { const slotMinutes = timeToMinutes(slot); if (slotMinutes < 480 || slotMinutes > 1320) continue; const row = document.createElement('tr'); const timeCell = document.createElement('td'); timeCell.className = 'time-cell'; if (slot.endsWith(':00')) timeCell.classList.add('highlight'); timeCell.textContent = slot; row.appendChild(timeCell); for (let i=0; i<ROOMS.length; i++) { if (skipRow[i] > 0) { skipRow[i]--; continue; } const res = dayReservations.find(r => r.salle === ROOMS[i] && r.debut === slot); if (res) { const dur = (timeToMinutes(res.fin) - timeToMinutes(res.debut)) / 30; const cell = document.createElement('td'); cell.className = 'booked-cell'; cell.rowSpan = dur; cell.innerHTML = `<div class="booked-content"><span class="booked-time">${res.debut} → ${res.fin}</span><span class="booked-name">${escapeHtml(res.ens)}</span><span class="booked-subject">${escapeHtml(res.objet || '')}</span></div>`; cell.onclick = () => showToast(`📌 ${res.salle} : ${res.ens}`); row.appendChild(cell); skipRow[i] = dur - 1; } else { const cell = document.createElement('td'); cell.className = 'free-cell'; cell.onclick = () => { navigateTo('reserve'); document.getElementById('roomSelect').value = ROOMS[i]; document.getElementById('startTimeSelect').value = slot; document.getElementById('endTimeInput').value = minutesToTime(slotMinutes+120); document.getElementById('reservationDate').value = date; showToast(`Salle ${ROOMS[i]} à ${slot}`); }; row.appendChild(cell); } } tbody.appendChild(row); } table.appendChild(tbody); loader.style.display = 'none'; container.style.display = 'block'; }
+  async function loadReservations() { const loader = document.getElementById('reservationsLoader'); const container = document.getElementById('reservationsList'); const filterBar = document.getElementById('filterBar'); loader.style.display = 'block'; container.innerHTML = ''; filterBar.innerHTML = '<button class="filter-chip active" onclick="filterReservations(\'all\', this)">Toutes</button>'; ROOMS.forEach(room => { filterBar.innerHTML += `<button class="filter-chip" onclick="filterReservations('${room}', this)">${room}</button>`; }); let reservations = await fetchReservations(); if (currentFilter !== 'all') reservations = reservations.filter(r => r.salle === currentFilter); loader.style.display = 'none'; if (reservations.length === 0) { container.innerHTML = '<div class="empty-state">Aucune réservation</div>'; return; } reservations.forEach(res => { const card = document.createElement('div'); card.className = 'res-card'; card.innerHTML = `<div class="res-info"><div class="res-title">${escapeHtml(res.objet || 'Sans objet')}</div><div class="res-meta">👤 ${escapeHtml(res.ens)} · 📅 ${res.date} · 🕐 ${res.debut} → ${res.fin}</div>${res.remarque ? `<div class="res-meta">📝 ${escapeHtml(res.remarque)}</div>` : ''}</div><div class="res-badges"><span class="badge badge-room">${res.salle}</span><span class="badge badge-status">${res.status}</span><button class="delete-btn" onclick="deleteReservation(${res.id})">✕ Supprimer</button></div>`; container.appendChild(card); }); }
+  function filterReservations(filter, btn) { currentFilter = filter; document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); btn.classList.add('active'); loadReservations(); }
+  async function deleteReservation(id) { openModal('Supprimer', '<p>Confirmer la suppression ?</p>', async () => { await removeReservation(id); showToast('Réservation supprimée', 'success'); loadReservations(); if (document.getElementById('page-planning').classList.contains('active')) loadPlanning(); }); }
+
+  // ==================== CAISSE AVEC FILTRES DATE ====================
+  let currentInitialBalance = 0;
+  async function fetchInitialBalance() { const res = await fetch(`${API_CASH_SETTINGS}?id=eq.1`, { headers: HEADERS }); const data = await res.json(); if (data.length > 0) currentInitialBalance = parseFloat(data[0].initial_balance); else { await fetch(API_CASH_SETTINGS, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ id:1, initial_balance:0 }) }); currentInitialBalance = 0; } document.getElementById('initialBalanceInput').value = currentInitialBalance.toFixed(2); return currentInitialBalance; }
+  async function updateInitialBalance() { const newBalance = parseFloat(document.getElementById('initialBalanceInput').value); if (isNaN(newBalance)) { showToast('Montant invalide', 'error'); return; } await fetch(`${API_CASH_SETTINGS}?id=eq.1`, { method: 'PATCH', headers: HEADERS, body: JSON.stringify({ initial_balance: newBalance }) }); currentInitialBalance = newBalance; showToast('État initial mis à jour', 'success'); loadCashSummaryOnly(); }
+  async function fetchTransactionsWithDateFilter(startDate, endDate) { let url = API_CASH_TRANSACTIONS + '?order=date.desc'; if (startDate) url += `&date=gte.${startDate}`; if (endDate) url += `&date=lte.${endDate}`; const res = await fetch(url, { headers: HEADERS }); if (!res.ok) throw new Error(); return await res.json(); }
+  async function loadCashSummaryOnly() { const initial = await fetchInitialBalance(); const allTrans = await fetchTransactionsWithDateFilter(null, null); let totalIncome=0, totalExpense=0; allTrans.forEach(t => { if(t.type === 'income') totalIncome += parseFloat(t.amount); else totalExpense += parseFloat(t.amount); }); const finalBalance = initial + totalIncome - totalExpense; document.getElementById('cashSummary').innerHTML = `<div class="summary-card"><h3>État initial</h3><div class="amount">${initial.toFixed(2)} TND</div></div><div class="summary-card"><h3>Total entrées</h3><div class="amount" style="color:var(--success)">+ ${totalIncome.toFixed(2)} TND</div></div><div class="summary-card"><h3>Total dépenses</h3><div class="amount" style="color:var(--danger)">- ${totalExpense.toFixed(2)} TND</div></div><div class="summary-card"><h3>État final</h3><div class="amount">${finalBalance.toFixed(2)} TND</div></div>`; }
+  async function loadFilteredTransactions(startDate, endDate) { const loader = document.getElementById('transactionsLoader'); const tbody = document.getElementById('transactionsList'); loader.style.display = 'block'; try { const transactions = await fetchTransactionsWithDateFilter(startDate, endDate); tbody.innerHTML = ''; if (transactions.length === 0) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucune transaction</td></tr>'; else transactions.forEach(t => { const row = document.createElement('tr'); row.innerHTML = `<td>${t.date}</td><td>${t.type === 'income' ? '💰 Revenu' : '💸 Dépense'}</td><td class="${t.type === 'income' ? 'income' : 'expense'}">${t.type === 'income' ? '+' : '-'} ${parseFloat(t.amount).toFixed(2)} TND</td><td>${escapeHtml(t.description || '-')}</td><td><button class="delete-transaction" onclick="deleteTransaction(${t.id})">🗑️</button></td>`; tbody.appendChild(row); }); } catch(e) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Erreur chargement</td></tr>'; } loader.style.display = 'none'; }
+  function applyTransactionFilter() { const start = document.getElementById('transactionFilterStart').value; const end = document.getElementById('transactionFilterEnd').value; loadFilteredTransactions(start, end); }
+  function resetTransactionFilter() { document.getElementById('transactionFilterStart').value = ''; document.getElementById('transactionFilterEnd').value = ''; loadFilteredTransactions(null, null); }
+  async function addManualTransaction() { const type = document.getElementById('transactionType').value; const amount = parseFloat(document.getElementById('transactionAmount').value); const date = document.getElementById('transactionDate').value; const description = document.getElementById('transactionDescription').value.trim(); if (isNaN(amount) || amount <= 0) { showToast('Montant > 0', 'error'); return; } if (!date) { showToast('Date requise', 'error'); return; } await fetch(API_CASH_TRANSACTIONS, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ type, amount, description, date }) }); showToast('Transaction ajoutée', 'success'); resetTransactionForm(); loadCashSummaryOnly(); resetTransactionFilter(); }
+  function resetTransactionForm() { document.getElementById('transactionAmount').value = ''; document.getElementById('transactionDescription').value = ''; document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0]; document.getElementById('transactionType').value = 'income'; }
+  async function deleteTransaction(id) { openModal('Supprimer', '<p>Supprimer cette transaction ?</p>', async () => { await fetch(`${API_CASH_TRANSACTIONS}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS }); showToast('Transaction supprimée', 'success'); loadCashSummaryOnly(); resetTransactionFilter(); }); }
+  async function exportAllTransactionsPDF() { const transactions = await fetchTransactionsWithDateFilter(null, null); if (transactions.length === 0) { showToast('Aucune transaction', 'error'); return; } const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', 'a4'); doc.setFontSize(16); doc.text('Historique complet des transactions', 14, 20); doc.setFontSize(10); doc.text(`Généré le ${new Date().toLocaleString()}`, 14, 28); const tableData = transactions.map(t => [t.date, t.type === 'income' ? 'Revenu' : 'Dépense', `${t.type === 'income' ? '+' : '-'} ${parseFloat(t.amount).toFixed(2)} TND`, t.description || '']); doc.autoTable({ startY: 35, head: [['Date', 'Type', 'Montant', 'Description']], body: tableData, theme: 'striped', headStyles: { fillColor: [56, 189, 248] } }); doc.save('transactions_completes.pdf'); }
+  async function loadDailyHistory() { /* inchangé */ const month = document.getElementById('historyMonth').value; if (!month) { showToast('Sélectionnez un mois', 'error'); return; } const [year, monthNum] = month.split('-'); const startDate = `${year}-${monthNum}-01`; const endDate = new Date(year, monthNum, 0).toISOString().split('T')[0]; const loader = document.getElementById('historyLoader'); const tbody = document.getElementById('dailyHistoryBody'); loader.style.display = 'block'; const initial = await fetchInitialBalance(); const transactions = await fetchTransactionsWithDateFilter(null,null); const monthTransactions = transactions.filter(t => t.date >= startDate && t.date <= endDate); const dailyMap = new Map(); monthTransactions.forEach(t => { if (!dailyMap.has(t.date)) dailyMap.set(t.date, { income:0, expense:0 }); const d = dailyMap.get(t.date); if (t.type === 'income') d.income += parseFloat(t.amount); else d.expense += parseFloat(t.amount); }); const daysInMonth = new Date(year, monthNum, 0).getDate(); let cumulative = initial; const rows = []; for (let d=1; d<=daysInMonth; d++) { const dateStr = `${year}-${monthNum}-${String(d).padStart(2,'0')}`; const dayData = dailyMap.get(dateStr) || { income:0, expense:0 }; const dayInitial = cumulative; const dayFinal = dayInitial + dayData.income - dayData.expense; rows.push({ date: dateStr, initial: dayInitial, income: dayData.income, expense: dayData.expense, final: dayFinal }); cumulative = dayFinal; } tbody.innerHTML = ''; rows.forEach(row => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${row.date}</td><td style="text-align:right">${row.initial.toFixed(2)} TND</td><td style="text-align:right;color:var(--success)">+ ${row.income.toFixed(2)} TND</td><td style="text-align:right;color:var(--danger)">- ${row.expense.toFixed(2)} TND</td><td style="text-align:right">${row.final.toFixed(2)} TND</td>`; tbody.appendChild(tr); }); loader.style.display = 'none'; }
+  async function exportMonthlyPDF() { /* inchangé */ const month = document.getElementById('historyMonth').value; if (!month) return; const [year, monthNum] = month.split('-'); const monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']; const monthName = monthNames[parseInt(monthNum)-1]; const startDate = `${year}-${monthNum}-01`; const endDate = new Date(year, monthNum, 0).toISOString().split('T')[0]; const initial = await fetchInitialBalance(); const transactions = await fetchTransactionsWithDateFilter(null,null); const monthTransactions = transactions.filter(t => t.date >= startDate && t.date <= endDate); let totalIncome=0, totalExpense=0; monthTransactions.forEach(t => { if(t.type==='income') totalIncome+=parseFloat(t.amount); else totalExpense+=parseFloat(t.amount); }); const finalBalance = initial + totalIncome - totalExpense; const { jsPDF } = window.jspdf; const doc = new jsPDF('p','mm','a4'); doc.setFontSize(16); doc.text(`Rapport de caisse - ${monthName} ${year}`, 14, 20); doc.setFontSize(10); doc.text(`Généré le ${new Date().toLocaleString()}`, 14, 28); doc.text(`État initial : ${initial.toFixed(2)} TND`, 14, 36); doc.text(`Total entrées : ${totalIncome.toFixed(2)} TND`, 14, 42); doc.text(`Total dépenses : ${totalExpense.toFixed(2)} TND`, 14, 48); doc.text(`État final : ${finalBalance.toFixed(2)} TND`, 14, 54); const tableData = monthTransactions.map(t => [t.date, t.type==='income'?'Revenu':'Dépense', `${t.type==='income'?'+':'-'} ${parseFloat(t.amount).toFixed(2)} TND`, t.description||'']); doc.autoTable({ startY:62, head:[['Date','Type','Montant','Description']], body:tableData, theme:'striped', headStyles:{ fillColor:[56,189,248] } }); doc.save(`caisse_${year}_${monthNum}.pdf`); }
+
+  // ==================== BIBLIOTHÈQUE AVEC FILTRES ====================
+  function switchLibraryTab(tab) { document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); if (tab === 'subscriptions') { document.getElementById('subscriptionsTab').classList.add('active'); document.getElementById('dailyTab').classList.remove('active'); document.querySelectorAll('.tab-btn')[0].classList.add('active'); resetSubFilter(); } else { document.getElementById('subscriptionsTab').classList.remove('active'); document.getElementById('dailyTab').classList.add('active'); document.querySelectorAll('.tab-btn')[1].classList.add('active'); resetDailyFilter(); } }
+  async function fetchSubscriptionsFiltered(startDate, endDate) { let url = API_SUBSCRIPTIONS + '?order=start_date.desc'; if (startDate) url += `&start_date=gte.${startDate}`; if (endDate) url += `&start_date=lte.${endDate}`; const res = await fetch(url, { headers: HEADERS }); if (!res.ok) throw new Error(); return await res.json(); }
+  async function loadSubscriptionsWithFilter(start, end) { const loader = document.getElementById('subscriptionsLoader'); const container = document.getElementById('subscriptionsList'); if (!container) return; loader.style.display = 'block'; container.innerHTML = ''; const subs = await fetchSubscriptionsFiltered(start, end); loader.style.display = 'none'; if (subs.length === 0) { container.innerHTML = '<div class="empty-state">Aucun abonnement</div>'; return; } subs.forEach(s => { const div = document.createElement('div'); div.className = 'library-item'; div.innerHTML = `<div><strong>${escapeHtml(s.member_name)}</strong><br>${s.start_date} → ${s.end_date}<br>💰 ${s.price.toFixed(2)} TND</div><div><button class="delete-btn" onclick="deleteSubscription(${s.id})">🗑️ Supprimer</button></div>`; container.appendChild(div); }); }
+  function applySubFilter() { const start = document.getElementById('subFilterStart').value; const end = document.getElementById('subFilterEnd').value; loadSubscriptionsWithFilter(start, end); }
+  function resetSubFilter() { document.getElementById('subFilterStart').value = ''; document.getElementById('subFilterEnd').value = ''; loadSubscriptionsWithFilter(null, null); }
+  async function addSubscription(member, phone, start, end, price) { const data = { member_name: member, phone: phone || null, start_date: start, end_date: end, price }; await fetch(API_SUBSCRIPTIONS, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify(data) }); await fetch(API_CASH_TRANSACTIONS, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ type: 'income', amount: price, date: start, description: `Abonnement - ${member}` }) }); loadCashSummaryOnly(); resetSubFilter(); }
+  async function deleteSubscription(id) { openModal('Supprimer', '<p>Supprimer cet abonnement ?</p>', async () => { await fetch(`${API_SUBSCRIPTIONS}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS }); showToast('Abonnement supprimé', 'success'); resetSubFilter(); }); }
+  function openSubscriptionModal() { const body = `<div class="form-group"><label>Nom du membre</label><input type="text" id="subMember" required></div><div class="form-group"><label>Téléphone</label><input type="tel" id="subPhone"></div><div class="form-group"><label>Date de début</label><input type="date" id="subStart" required></div><div class="form-group"><label>Date de fin</label><input type="date" id="subEnd" required></div><div class="form-group"><label>Prix (TND)</label><input type="number" id="subPrice" step="0.01" required></div>`; openModal('Nouvel abonnement', body, async () => { const member = document.getElementById('subMember').value.trim(); const phone = document.getElementById('subPhone').value.trim(); const start = document.getElementById('subStart').value; const end = document.getElementById('subEnd').value; const price = parseFloat(document.getElementById('subPrice').value); if (!member || !start || !end || isNaN(price) || price <= 0) { showToast('Champs invalides', 'error'); return; } if (new Date(start) > new Date(end)) { showToast('Date de fin après début', 'error'); return; } await addSubscription(member, phone, start, end, price); showToast('Abonnement ajouté', 'success'); }); }
+  async function fetchDailyPassesFiltered(startDate, endDate) { let url = API_DAILY_PASSES + '?order=date.desc'; if (startDate) url += `&date=gte.${startDate}`; if (endDate) url += `&date=lte.${endDate}`; const res = await fetch(url, { headers: HEADERS }); if (!res.ok) throw new Error(); return await res.json(); }
+  async function loadDailyPassesWithFilter(start, end) { const loader = document.getElementById('dailyLoader'); const container = document.getElementById('dailyList'); if (!container) return; loader.style.display = 'block'; container.innerHTML = ''; const passes = await fetchDailyPassesFiltered(start, end); loader.style.display = 'none'; if (passes.length === 0) { container.innerHTML = '<div class="empty-state">Aucun pass journée</div>'; return; } passes.forEach(p => { const div = document.createElement('div'); div.className = 'library-item'; div.innerHTML = `<div><strong>${escapeHtml(p.member_name)}</strong><br>📅 ${p.date}<br>💰 ${p.price.toFixed(2)} TND</div><div><button class="delete-btn" onclick="deleteDailyPass(${p.id})">🗑️ Supprimer</button></div>`; container.appendChild(div); }); }
+  function applyDailyFilter() { const start = document.getElementById('dailyFilterStart').value; const end = document.getElementById('dailyFilterEnd').value; loadDailyPassesWithFilter(start, end); }
+  function resetDailyFilter() { document.getElementById('dailyFilterStart').value = ''; document.getElementById('dailyFilterEnd').value = ''; loadDailyPassesWithFilter(null, null); }
+  async function addDailyPass(member, date, price) { const data = { member_name: member, date, price }; await fetch(API_DAILY_PASSES, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify(data) }); await fetch(API_CASH_TRANSACTIONS, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ type: 'income', amount: price, date, description: `Pass journée - ${member}` }) }); loadCashSummaryOnly(); resetDailyFilter(); }
+  async function deleteDailyPass(id) { openModal('Supprimer', '<p>Supprimer ce pass journée ?</p>', async () => { await fetch(`${API_DAILY_PASSES}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS }); showToast('Pass supprimé', 'success'); resetDailyFilter(); }); }
+  function openDailyPassModal() { const body = `<div class="form-group"><label>Nom du membre</label><input type="text" id="dailyMember" required></div><div class="form-group"><label>Date</label><input type="date" id="dailyDate" required></div><div class="form-group"><label>Prix (TND)</label><input type="number" id="dailyPrice" step="0.01" required></div>`; openModal('Nouveau pass journée', body, async () => { const member = document.getElementById('dailyMember').value.trim(); const date = document.getElementById('dailyDate').value; const price = parseFloat(document.getElementById('dailyPrice').value); if (!member || !date || isNaN(price) || price <= 0) { showToast('Champs invalides', 'error'); return; } await addDailyPass(member, date, price); showToast('Pass ajouté', 'success'); }); }
+
+  // ==================== INIT ====================
+  async function init() {
+    try {
+      await fetch(API_RESERVATIONS + '?limit=1', { headers: HEADERS });
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      initForm();
+      await loadPlanning();
+      await fetchInitialBalance();
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('historyMonth').value = today.slice(0,7);
+      document.getElementById('transactionDate').value = today;
+      loadCashSummaryOnly();
+      resetTransactionFilter();
+      resetSubFilter();
+      resetDailyFilter();
+    } catch (error) {
+      console.error(error);
+      document.querySelector('#loader p').innerHTML = `❌ Erreur de connexion<br><small>${error.message}</small>`;
+    }
+  }
+  init();
+</script>
+</body>
+</html>
